@@ -48,7 +48,12 @@ MODELS_DIR = "models"
 def str2bool(v):
     if isinstance(v, bool):
         return v
-    return str(v).strip().lower() in ("true", "1", "yes", "y", "t")
+    normalized = str(v).strip().lower()
+    if normalized in ("true", "1", "yes", "y", "t"):
+        return True
+    if normalized in ("false", "0", "no", "n", "f"):
+        return False
+    raise argparse.ArgumentTypeError("Expected a boolean: true/false, yes/no, or 1/0.")
 
 
 def build_arg_parser():
@@ -99,6 +104,11 @@ def load_record(args) -> dict:
         print("Provide them via CLI flags or a --json file.", file=sys.stderr)
         sys.exit(1)
 
+    try:
+        record["has_autopay"] = str2bool(record["has_autopay"])
+    except argparse.ArgumentTypeError as error:
+        print(f"Error: has_autopay: {error}", file=sys.stderr)
+        sys.exit(1)
     return record
 
 
