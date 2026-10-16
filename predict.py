@@ -84,8 +84,12 @@ def build_arg_parser():
 
 def load_record(args) -> dict:
     if args.json:
-        with open(args.json) as f:
-            record = json.load(f)
+        try:
+            with open(args.json) as f:
+                record = json.load(f)
+        except (OSError, ValueError) as error:
+            print(f"Error: could not load customer JSON: {error}", file=sys.stderr)
+            sys.exit(1)
     else:
         record = {
             "tenure_months": args.tenure_months,
@@ -97,6 +101,10 @@ def load_record(args) -> dict:
             "payment_method": args.payment_method,
             "has_autopay": args.has_autopay,
         }
+
+    if not isinstance(record, dict):
+        print("Error: customer JSON must be an object containing one record.", file=sys.stderr)
+        sys.exit(1)
 
     missing = [k for k in ALL_FEATURES if record.get(k, None) is None]
     if missing:

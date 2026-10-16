@@ -34,3 +34,31 @@ def test_json_false_string_is_normalized_before_model_conversion(tmp_path):
     path.write_text(json.dumps(record))
     with pytest.raises(SystemExit):
         load_record(args)
+
+
+@pytest.mark.parametrize("value", [[], [1], None, "customer", 42, False])
+def test_json_requires_one_object(value, tmp_path, capsys):
+    path = tmp_path / "bad.json"
+    path.write_text(json.dumps(value))
+    args = build_arg_parser().parse_args(["--json", str(path)])
+    with pytest.raises(SystemExit) as error:
+        load_record(args)
+    assert error.value.code == 1
+    assert "must be an object" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("content", ["{", "", "{bad json}"])
+def test_malformed_json_has_a_useful_error(content, tmp_path, capsys):
+    path = tmp_path / "bad.json"
+    path.write_text(content)
+    args = build_arg_parser().parse_args(["--json", str(path)])
+    with pytest.raises(SystemExit):
+        load_record(args)
+    assert "could not load customer JSON" in capsys.readouterr().err
+
+
+def test_missing_json_file_has_a_useful_error(tmp_path, capsys):
+    args = build_arg_parser().parse_args(["--json", str(tmp_path / "missing.json")])
+    with pytest.raises(SystemExit):
+        load_record(args)
+    assert "could not load customer JSON" in capsys.readouterr().err
