@@ -34,6 +34,7 @@ Where customer.json looks like:
 
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -111,6 +112,32 @@ def load_record(args) -> dict:
         print(f"Error: missing required fields: {missing}", file=sys.stderr)
         print("Provide them via CLI flags or a --json file.", file=sys.stderr)
         sys.exit(1)
+
+    integer_fields = {"tenure_months", "support_tickets_last_90d"}
+    numeric_fields = integer_fields | {"monthly_charges", "total_charges", "avg_weekly_usage"}
+    for field in sorted(numeric_fields):
+        value = record[field]
+        valid = type(value) in (int, float) and value >= 0
+        if field in integer_fields:
+            valid = valid and type(value) is int
+        # Avoid an OverflowError when JSON contains an arbitrarily large int.
+        try:
+            valid = valid and math.isfinite(value)
+        except OverflowError:
+            valid = False
+        if not valid:
+            kind = "integer" if field in integer_fields else "number"
+            print(f"Error: {field} must be a finite nonnegative {kind}.", file=sys.stderr)
+            sys.exit(1)
+
+    categories = {
+        "contract_type": ("month-to-month", "one-year", "two-year"),
+        "payment_method": ("credit_card", "bank_transfer", "electronic_check", "mailed_check"),
+    }
+    for field, choices in categories.items():
+        if not isinstance(record[field], str) or record[field] not in choices:
+            print(f"Error: {field} must be one of {', '.join(choices)}.", file=sys.stderr)
+            sys.exit(1)
 
     try:
         record["has_autopay"] = str2bool(record["has_autopay"])
