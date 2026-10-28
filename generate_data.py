@@ -19,9 +19,9 @@ Output:
     data/customers.csv  (~5000 rows)
 
 Reproducibility:
-    np.random.seed(SEED) is set once at the top of the script, and a single
-    numpy Generator seeded from it drives every random draw, so the output
-    file is identical on every run.
+    Each generate_customers call uses its own numpy Generator, seeded by
+    the optional seed argument (42 by default). Repeated calls with the same
+    seed produce identical data without changing numpy's global random state.
 """
 
 import numpy as np
@@ -31,11 +31,8 @@ import os
 SEED = 42
 N_ROWS = 5000
 
-np.random.seed(SEED)
-rng = np.random.default_rng(SEED)
-
-
-def generate_customers(n_rows: int = N_ROWS) -> pd.DataFrame:
+def generate_customers(n_rows: int = N_ROWS, seed: int = SEED) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
     # --- tenure_months: how long the customer has been with the company ---
     # Skewed toward shorter tenures (typical for subscription businesses),
     # capped at 72 months (6 years).
@@ -105,11 +102,11 @@ def generate_customers(n_rows: int = N_ROWS) -> pd.DataFrame:
         "has_autopay": has_autopay,
     })
 
-    df["churned"] = simulate_churn_label(df)
+    df["churned"] = simulate_churn_label(df, rng=rng)
     return df
 
 
-def churn_probability(df: pd.DataFrame) -> np.ndarray:
+def churn_probability(df: pd.DataFrame, *, rng: np.random.Generator | None = None) -> np.ndarray:
     """
     Explicit, documented ground-truth churn probability formula.
 
@@ -141,6 +138,7 @@ def churn_probability(df: pd.DataFrame) -> np.ndarray:
     irreducible random component), which keeps the classification problem
     realistic (ROC-AUC well below 1.0 but well above 0.5).
     """
+    rng = np.random.default_rng(SEED) if rng is None else rng
     is_month_to_month = (df["contract_type"] == "month-to-month").astype(float)
     is_two_year = (df["contract_type"] == "two-year").astype(float)
     autopay = df["has_autopay"].astype(float)
@@ -163,8 +161,9 @@ def churn_probability(df: pd.DataFrame) -> np.ndarray:
     return p.to_numpy() if hasattr(p, "to_numpy") else np.asarray(p)
 
 
-def simulate_churn_label(df: pd.DataFrame) -> np.ndarray:
-    p = churn_probability(df)
+def simulate_churn_label(df: pd.DataFrame, *, rng: np.random.Generator | None = None) -> np.ndarray:
+    rng = np.random.default_rng(SEED) if rng is None else rng
+    p = churn_probability(df, rng=rng)
     draws = rng.random(len(df))
     return (draws < p).astype(int)
 
