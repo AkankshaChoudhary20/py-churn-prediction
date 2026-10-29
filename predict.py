@@ -83,11 +83,20 @@ def build_arg_parser():
     return parser
 
 
+def _unique_fields(pairs):
+    record = {}
+    for key, value in pairs:
+        if key in record:
+            raise ValueError(f"Duplicate customer JSON field: {key}")
+        record[key] = value
+    return record
+
+
 def load_record(args) -> dict:
     if args.json:
         try:
             with open(args.json) as f:
-                record = json.load(f)
+                record = json.load(f, object_pairs_hook=_unique_fields)
         except (OSError, ValueError) as error:
             print(f"Error: could not load customer JSON: {error}", file=sys.stderr)
             sys.exit(1)
