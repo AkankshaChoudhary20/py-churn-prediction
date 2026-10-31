@@ -44,6 +44,7 @@ import pandas as pd
 from features import ALL_FEATURES
 
 MODELS_DIR = "models"
+MODEL_NAMES = ("logistic_regression", "random_forest")
 
 
 def str2bool(v):
@@ -64,7 +65,7 @@ def build_arg_parser():
     parser.add_argument("--json", type=str, default=None,
                          help="Path to a JSON file with one customer record.")
     parser.add_argument("--model", type=str, default=None,
-                         choices=["logistic_regression", "random_forest"],
+                         choices=MODEL_NAMES,
                          help="Which saved model to use. Defaults to the best "
                               "model recorded in models/best_model.txt.")
 
@@ -162,7 +163,10 @@ def resolve_model_name(args) -> str:
     best_path = os.path.join(MODELS_DIR, "best_model.txt")
     if os.path.exists(best_path):
         with open(best_path) as f:
-            return f.read().strip()
+            model_name = f.read().strip()
+        if model_name not in MODEL_NAMES:
+            raise ValueError("best_model.txt must name logistic_regression or random_forest. Run train.py to regenerate it.")
+        return model_name
     return "random_forest"
 
 
@@ -171,7 +175,10 @@ def main():
     args = parser.parse_args()
 
     record = load_record(args)
-    model_name = resolve_model_name(args)
+    try:
+        model_name = resolve_model_name(args)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
     model_path = os.path.join(MODELS_DIR, f"{model_name}.joblib")
 
     if not os.path.exists(model_path):
