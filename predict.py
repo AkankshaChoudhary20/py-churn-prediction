@@ -96,7 +96,7 @@ def _unique_fields(pairs):
 def load_record(args) -> dict:
     if args.json:
         try:
-            with open(args.json) as f:
+            with open(args.json, encoding="utf-8-sig") as f:
                 record = json.load(f, object_pairs_hook=_unique_fields)
         except (OSError, ValueError) as error:
             print(f"Error: could not load customer JSON: {error}", file=sys.stderr)
