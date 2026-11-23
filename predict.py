@@ -181,12 +181,12 @@ def main():
         parser.error(str(error))
     model_path = os.path.join(MODELS_DIR, f"{model_name}.joblib")
 
-    if not os.path.exists(model_path):
-        print(f"Error: model file not found: {model_path}. Run train.py first.",
-              file=sys.stderr)
-        sys.exit(1)
-
-    pipeline = joblib.load(model_path)
+    try:
+        pipeline = joblib.load(model_path)
+    except FileNotFoundError:
+        parser.exit(1, f"Error: model file not found: {model_path}. Run train.py first.\n")
+    except (OSError, EOFError) as error:
+        parser.exit(1, f"Error: could not read model file {model_path}: {error}\n")
 
     X = pd.DataFrame([record])[ALL_FEATURES].copy()
     X["has_autopay"] = X["has_autopay"].astype(bool).astype(int)
